@@ -2,9 +2,7 @@ import DocumentIcon from "../icons/DocumentIcon";
 import NotionIcon from "../icons/NotionIcon";
 import DeleteIcon from "../icons/DeleteIcon";
 import Tags from "./Tags";
-import { format } from 'date-fns'
 import { type JSX, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import TwitterIcon from "../icons/TwitterIcon";
 
 
@@ -19,7 +17,6 @@ interface CardProps {
 
 const Card = (props: CardProps) => {
 //   const navigate = useNavigate();
-const date = format(new Date(), 'dd MMM yyyy');
 const [thumbnail, setThumbnail] = useState<string | null>(null);
 let contentPreview: JSX.Element = <p className="text-gray-500">No content available</p>;
 

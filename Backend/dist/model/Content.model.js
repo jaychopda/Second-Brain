@@ -42,7 +42,7 @@ const contentSchema = new mongoose_1.default.Schema({
     },
     type: {
         type: String,
-        enum: ["text", "image", "video", "audio"],
+        enum: ["text", "image", "audio", "youtube", "twitter", "notion", "url"],
         required: true
     },
     title: {

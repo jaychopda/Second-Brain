@@ -138,34 +138,29 @@ app.post('/api/v1/content', auth_user_1.authMiddleware, (req, res) => __awaiter(
         try {
             const user = req.user;
             const { link, type, title, tags } = req.body;
-            console.log("Hello 1");
             const requiredBody = zod_1.default.object({
-                link: zod_1.default.string().url("Invalid URL"),
+                link: zod_1.default.string(),
                 type: zod_1.default.string(),
                 title: zod_1.default.string().min(1, "Title is required"),
                 tags: zod_1.default.array(zod_1.default.string()).optional()
             });
-            console.log("Hello 2");
             const parseDataWithSuccess = requiredBody.safeParse(req.body);
-            console.log("Hello 3");
             if (!parseDataWithSuccess.success) {
+                console.log(parseDataWithSuccess.error);
                 return res.status(411).json({
                     message: "Invalid Input Form!!!"
                 });
             }
-            console.log("Hello 4");
             for (const tag of tags || []) {
-                const existingTag = yield Tag_model_1.TagModel.findOne({ title: tag.trim() });
+                const existingTag = yield Tag_model_1.TagModel.findOne({ title: tag });
                 if (!existingTag) {
-                    const newTag = yield Tag_model_1.TagModel.create({ title: tag.trim() });
-                    req.body.tags = req.body.tags.map((t) => t.trim() === tag.trim() ? newTag._id : t);
+                    const newTag = yield Tag_model_1.TagModel.create({ title: tag });
+                    req.body.tags = req.body.tags.map((t) => t === tag ? newTag._id : t);
                 }
                 else {
-                    req.body.tags = req.body.tags.map((t) => t.trim() === tag.trim() ? existingTag._id : t);
+                    req.body.tags = req.body.tags.map((t) => t === tag ? existingTag._id : t);
                 }
             }
-            console.log("Hello 5");
-            console.log(req.body.tags);
             const content = yield Content_model_1.ContentModel.create({
                 link,
                 type,
@@ -173,7 +168,6 @@ app.post('/api/v1/content', auth_user_1.authMiddleware, (req, res) => __awaiter(
                 tags: req.body.tags,
                 userId: user.id
             });
-            console.log("Hello 6");
             res.status(201).json({
                 message: "Content Created Successfully",
                 content
