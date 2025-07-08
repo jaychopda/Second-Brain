@@ -16,7 +16,6 @@ interface CardProps {
 }
 
 const Card = (props: CardProps) => {
-//   const navigate = useNavigate();
 const [thumbnail, setThumbnail] = useState<string | null>(null);
 let contentPreview: JSX.Element = <p className="text-gray-500">No content available</p>;
 
