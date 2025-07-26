@@ -3,6 +3,7 @@ import Card from '../components/Card'
 import { PlusIcon } from '../icons/PlusIcon'
 import { ShareIcon } from '../icons/ShareIcon'
 import { CreateContentModel } from '../components/CreateContentModal'
+import { ChatSidebar } from '../components/ChatSidebar'
 import { useState, useEffect } from 'react'
 import { Sidebar } from '../components/Sidebar'
 import axios from 'axios'
@@ -448,7 +449,32 @@ export default function Dashboard() {
                     <span className='text-sm text-gray-300'>Welcome, {userName}!</span>
                   </div>
                 </div>
-                <p className='text-gray-300 text-sm lg:text-base'>Organize and manage your digital knowledge</p>
+                <div className='flex items-center space-x-4 mt-2'>
+                  {/* Links Stats */}
+                  <div className='flex items-center space-x-2 bg-green-900/20 px-3 py-1 rounded-lg'>
+                    <div className='w-6 h-6 bg-green-100 rounded flex items-center justify-center'>
+                      <LinkIcon />
+                    </div>
+                    <div className='text-white'>
+                      <span className='text-sm font-semibold'>{userStats.totalLinks}</span>
+                      <span className='text-xs text-gray-300 ml-1'>Links</span>
+                    </div>
+                  </div>
+                  
+                  {/* This Week Stats */}
+                  <div className='flex items-center space-x-2 bg-orange-900/20 px-3 py-1 rounded-lg'>
+                    <div className='w-6 h-6 bg-orange-100 rounded flex items-center justify-center'>
+                      <svg className='w-3 h-3 text-orange-600' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+                        <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M13 10V3L4 14h7v7l9-11h-7z' />
+                      </svg>
+                    </div>
+                    <div className='text-white'>
+                      <span className='text-sm font-semibold'>{userStats.recentActivity}</span>
+                      <span className='text-xs text-gray-300 ml-1'>This Week</span>
+                    </div>
+                  </div>
+                </div>
+                <p className='text-gray-300 text-sm lg:text-base mt-2'>Organize and manage your digital knowledge</p>
               </div>
 
               <div className='flex flex-col gap-3 lg:gap-4'>
@@ -531,37 +557,38 @@ export default function Dashboard() {
                       )}
                     </div>
                   </div>
-                  
-                  {/* View Brain Button */}
-                  <div className='mt-3'>
-                    <button
-                      onClick={() => window.location.href = '/brain'}
-                      className="w-full px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-colors flex items-center justify-center space-x-2"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                      </svg>
-                      <span>View Brain</span>
-                    </button>
-                  </div>
                 </div>
                 
-                {/* Search Button */}
-                <button  
-                  onClick={() => handleSecondBrainSearch(searchQuery)} 
-                  className='flex items-center justify-center space-x-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors'
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
-                  <span>Search</span>
-                </button>
+                {/* Action Buttons Row */}
+                <div className='flex gap-2 lg:gap-3'>
+                  {/* Search Button */}
+                  <button  
+                    onClick={() => handleSecondBrainSearch(searchQuery)} 
+                    className='flex items-center justify-center space-x-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors'
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                    <span>Search</span>
+                  </button>
+                  
+                  {/* View Brain Button */}
+                  <button
+                    onClick={() => window.location.href = '/brain'}
+                    className="px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-colors flex items-center space-x-2"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                    <span>View Brain</span>
+                  </button>
+                </div>
               </div>
             </div>
 
             {/* User Statistics Cards */}
-            <div className='grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3 lg:gap-4 mb-6 lg:mb-8'>
+            <div className='grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 lg:gap-4 mb-6 lg:mb-8'>
               <div className='bg-white p-3 lg:p-4 rounded-lg shadow-sm border border-gray-200'>
                 <div className='text-center'>
                   <div className='w-8 h-8 lg:w-10 lg:h-10 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-2'>
@@ -615,35 +642,20 @@ export default function Dashboard() {
                   <p className='text-xs text-gray-600'>Documents</p>
                 </div>
               </div>
+            </div>
+          </div>
 
-              <div className='bg-white p-3 lg:p-4 rounded-lg shadow-sm border border-gray-200'>
-                <div className='text-center'>
-                  <div className='w-8 h-8 lg:w-10 lg:h-10 bg-green-100 rounded-lg flex items-center justify-center mx-auto mb-2'>
-                    <LinkIcon />
-                  </div>
-                  <p className='text-lg lg:text-xl font-bold text-gray-900'>{userStats.totalLinks}</p>
-                  <p className='text-xs text-gray-600'>Links</p>
-                </div>
-              </div>
-
-              <div className='bg-white p-3 lg:p-4 rounded-lg shadow-sm border border-gray-200'>
-                <div className='text-center'>
-                  <div className='w-8 h-8 lg:w-10 lg:h-10 bg-orange-100 rounded-lg flex items-center justify-center mx-auto mb-2'>
-                    <svg className='w-4 h-4 lg:w-5 lg:h-5 text-orange-600' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
-                      <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M13 10V3L4 14h7v7l9-11h-7z' />
-                    </svg>
-                  </div>
-                  <p className='text-lg lg:text-xl font-bold text-gray-900'>{userStats.recentActivity}</p>
-                  <p className='text-xs text-gray-600'>This Week</p>
-                </div>
-              </div>
+          {/* Chat Sidebar - Moved to Top */}
+          <div className='mb-6'>
+            <div className='w-full lg:max-w-md mx-auto'>
+              <ChatSidebar className="h-[400px]" />
             </div>
           </div>
 
           {/* Content Section */}
           <div className='mb-6'>
             <div className='flex items-center justify-between mb-4'>
-              <h2 className='text-lg lg:text-xl font-semibold text-white'>Recent Content (Latest 5)</h2>
+              <h2 className='text-lg lg:text-xl font-semibold text-white'>Recent Content</h2>
               <div className='flex items-center space-x-2'>
                 <button
                   onClick={() => window.location.href = '/brain'}
@@ -690,11 +702,12 @@ export default function Dashboard() {
                 />
               </div>
             ) : (
-              <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 lg:gap-6'>
-                <Notes contents={contents.slice(0, 4)} />
+              <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6'>
+                <Notes contents={contents.slice(0, 3)} />
               </div>
             )}
           </div>
+
         </div>
       </div>
     </div>

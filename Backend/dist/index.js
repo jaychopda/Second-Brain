@@ -26,6 +26,7 @@ const Tag_model_1 = require("./model/Tag.model");
 const Share_model_1 = require("./model/Share.model");
 const utils_1 = require("./utils");
 const cors_1 = __importDefault(require("cors"));
+const axios_1 = __importDefault(require("axios"));
 dotenv_1.default.config();
 app.use(express_1.default.json());
 app.use((0, cors_1.default)());
@@ -298,5 +299,40 @@ app.get('/api/v1/brain/:hash', (req, res) => __awaiter(void 0, void 0, void 0, f
             message: "Server Error"
         });
     }
+}));
+app.get('/api/v1/brain', auth_user_1.authMiddleware, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const user = req.user;
+}));
+app.get('/api/v1/secondBrainSearch/:query', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { query } = req.params;
+    if (!query) {
+        return res.status(400).json({
+            message: "Query is required"
+        });
+    }
+    const token = req.headers.token;
+    const decoded = jsonwebtoken_1.default.decode(token);
+    if (!decoded) {
+        return res.status(403).json({
+            message: "Token is required"
+        });
+    }
+    let userId;
+    if (typeof decoded === "object" && decoded !== null && "id" in decoded) {
+        userId = decoded.id;
+    }
+    else {
+        return res.status(403).json({
+            message: "Invalid token payload"
+        });
+    }
+    const response = yield axios_1.default.post('http://127.0.0.1:8000/search', {
+        query: query,
+        userId: userId,
+        top: 3
+    });
+    return res.status(200).json({
+        data: response.data
+    });
 }));
 main();
