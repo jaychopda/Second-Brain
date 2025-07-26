@@ -18,6 +18,10 @@ const contentSchema = new mongoose.Schema({
         type: Types.ObjectId,
         ref: "Tag",
     }],
+    createdAt:{
+        type: String,
+        default: new Date().toISOString()
+    },
     userId:{
         type: Types.ObjectId,
         ref: "Users",

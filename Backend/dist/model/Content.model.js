@@ -53,6 +53,10 @@ const contentSchema = new mongoose_1.default.Schema({
             type: mongoose_1.Types.ObjectId,
             ref: "Tag",
         }],
+    createdAt: {
+        type: String,
+        default: new Date().toISOString()
+    },
     userId: {
         type: mongoose_1.Types.ObjectId,
         ref: "Users",

@@ -12,6 +12,8 @@ import { TagModel } from "./model/Tag.model"
 import { ShareModel } from "./model/Share.model"
 import { random } from "./utils"
 import cors from 'cors'
+import axios from 'axios'
+
 
 dotenv.config()
 
@@ -95,9 +97,10 @@ app.post('/api/v1/signin',async(req:any, res:any)=>{
             const user = await UserModel.findOne({username})
             if(user){
                 const hashedPassword = await bcrypt.compare(password,user.password)
+                
                 const USER_JWT_SECRET = "drf36ftceyuh34u45y3iui34gbtbvenm23j4hb9nem"
 
-                if(hashedPassword){
+                if(hashedPassword){ 
                     const token = jwt.sign({
                         id:user._id
                     },USER_JWT_SECRET)
@@ -303,6 +306,46 @@ app.get('/api/v1/brain/:hash', async(req:any, res:any)=>{
             message: "Server Error"
         });
     }
+})
+
+app.get('/api/v1/brain', authMiddleware, async(req:any, res:any)=>{
+    const user = req.user
+})
+
+app.get('/api/v1/secondBrainSearch/:query', async(req:any, res:any)=>{
+    const { query } = req.params;
+    if (!query) {
+        return res.status(400).json({
+            message: "Query is required"
+        });
+    }
+
+    const token = req.headers.token
+    const decoded = jwt.decode(token)
+    if(!decoded){
+        return res.status(403).json({
+            message:"Token is required"
+        })
+    }
+
+    let userId: string | undefined;
+    if (typeof decoded === "object" && decoded !== null && "id" in decoded) {
+        userId = (decoded as { id: string }).id;
+    } else {
+        return res.status(403).json({
+            message: "Invalid token payload"
+        });
+    }
+
+    const response = await axios.post('http://127.0.0.1:8000/search',{
+        query:query,
+        userId:userId,
+        top:3
+    })
+
+    return res.status(200).json({
+        data : response.data
+    })
 })
 
 main()

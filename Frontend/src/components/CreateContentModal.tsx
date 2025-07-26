@@ -23,7 +23,7 @@ export const CreateContentModel = ({open, onClose}: {open: boolean, onClose: () 
         console.log("Tags:", typeof tagsArr, tagsArr);
         console.log("Type:", typeof type, type);
 
-        axios.post("http://localhost:3000/api/v1/content", {
+        axios.post("http://192.168.85.214:3000/api/v1/content", {
             title,
             link,
             tags: tagsArr,
