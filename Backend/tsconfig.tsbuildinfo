@@ -1,1 +1,1 @@
-{"root":["./src/index.ts","./src/utils.ts","./src/db/db.ts","./src/middlewares/auth.user.ts","./src/model/content.model.ts","./src/model/share.model.ts","./src/model/tag.model.ts","./src/model/user.model.ts"],"version":"5.8.3"}
+{"root":["./src/index.ts","./src/utils.ts","./src/db/db.ts","./src/middlewares/auth.user.ts","./src/middlewares/multer.ts","./src/model/content.model.ts","./src/model/share.model.ts","./src/model/tag.model.ts","./src/model/user.model.ts","./src/utils/cloudinary.ts"],"version":"5.8.3"}

@@ -14,6 +14,9 @@ const contentSchema = new mongoose.Schema({
         type: String,
         required: true
     },
+    description:{
+        type: String,
+    },
     tags:[{
         type: Types.ObjectId,
         ref: "Tag",

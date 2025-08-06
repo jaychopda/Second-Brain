@@ -47,6 +47,15 @@ export default function Dashboard() {
     recentActivity: 0
   });
   const [userName, setUserName] = useState('');
+  const [chatModalOpen, setChatModalOpen] = useState(false);
+  const [chatPosition, setChatPosition] = useState({ x: 100, y: 100 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+
+  // Set initial chat position on the right side
+  useEffect(() => {
+    setChatPosition({ x: window.innerWidth - 450, y: 100 });
+  }, []);
 
   // Check if user is logged in on mount
   useEffect(() => {
@@ -207,6 +216,41 @@ export default function Dashboard() {
       console.error("Error sharing brain:", error);
     }
   };
+
+  // Handle mouse down for dragging
+  const handleMouseDown = (e: React.MouseEvent) => {
+    setIsDragging(true);
+    setDragOffset({
+      x: e.clientX - chatPosition.x,
+      y: e.clientY - chatPosition.y
+    });
+  };
+
+  // Handle mouse move for dragging
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (isDragging) {
+        setChatPosition({
+          x: e.clientX - dragOffset.x,
+          y: e.clientY - dragOffset.y
+        });
+      }
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+    };
+
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging, dragOffset]);
 
   // If not logged in, show welcome screen
   if (!isLoggedIn) {
@@ -432,6 +476,46 @@ export default function Dashboard() {
             </div>
           )}
 
+          {/* Chat Modal */}
+          {chatModalOpen && (
+            <div 
+              className="fixed bg-white rounded-lg shadow-2xl border border-gray-200 z-50"
+              style={{
+                left: `${chatPosition.x}px`,
+                top: `${chatPosition.y}px`,
+                width: '400px',
+                height: '600px',
+                maxHeight: '80vh',
+                cursor: isDragging ? 'grabbing' : 'default'
+              }}
+            >
+              <div className="flex flex-col h-full">
+                <div 
+                  className="flex justify-between items-center p-4 border-b border-gray-200 bg-gray-50 rounded-t-lg cursor-grab select-none"
+                  onMouseDown={handleMouseDown}
+                >
+                  <div className="flex items-center space-x-2">
+                    <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                    <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
+                    <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                    <h2 className="text-lg font-semibold text-gray-900 ml-2">Second Brain Chat</h2>
+                  </div>
+                  <button
+                    onClick={() => setChatModalOpen(false)}
+                    className="p-2 hover:bg-gray-200 rounded-lg transition-colors"
+                  >
+                    <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                <div className="flex-1 overflow-hidden">
+                  <ChatSidebar className="h-full border-0 shadow-none rounded-none" />
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Header Section */}
           <div className='mb-6 lg:mb-8'>
             <div className='flex flex-col lg:flex-row lg:justify-between lg:items-center mb-4 lg:mb-6'>
@@ -645,13 +729,6 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Chat Sidebar - Moved to Top */}
-          <div className='mb-6'>
-            <div className='w-full lg:max-w-md mx-auto'>
-              <ChatSidebar className="h-[400px]" />
-            </div>
-          </div>
-
           {/* Content Section */}
           <div className='mb-6'>
             <div className='flex items-center justify-between mb-4'>
@@ -710,6 +787,16 @@ export default function Dashboard() {
 
         </div>
       </div>
+
+      {/* Floating Chat Button */}
+      <button
+        onClick={() => setChatModalOpen(true)}
+        className="fixed bottom-6 right-6 w-14 h-14 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-300 transition-all duration-200 flex items-center justify-center z-40 hover:scale-105"
+      >
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+        </svg>
+      </button>
     </div>
   )
 }

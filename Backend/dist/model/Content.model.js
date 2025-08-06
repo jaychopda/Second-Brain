@@ -49,6 +49,9 @@ const contentSchema = new mongoose_1.default.Schema({
         type: String,
         required: true
     },
+    description: {
+        type: String,
+    },
     tags: [{
             type: mongoose_1.Types.ObjectId,
             ref: "Tag",

@@ -3,7 +3,7 @@ import Dashboard from "./pages/Dashboard"
 import { Signup } from "./pages/Signup"
 import { SignIn } from "./pages/Signin"
 import Brain from "./pages/Brain"
-import Testing from "./pages/Testing"
+import TweetInfo from "./pages/TweetInfo"
 
 
 function App() {
@@ -16,6 +16,7 @@ function App() {
           <Route path="/brain" element={<Brain />} />
           <Route path="/signup" element={<Signup />} />
           <Route path="/signin" element={<SignIn />} />
+          <Route path="/tweet/info/:id" element={<TweetInfo />} />
           {/* <Route path="/testing" element={<Testing />} /> */}
         </Routes>
       </BrowserRouter>
