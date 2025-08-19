@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { Button } from "../components/Button";
 import { Input } from "../components/Input";
 import axios from "axios";
-import { BACKEND_URL } from "../config";
+import { BACKEND_URL, GOOGLE_CLIENT_ID, GOOGLE_REDIRECT_URI } from "../config";
 
 export function Signup(){
     const nameRef = useRef<HTMLInputElement>(null);
@@ -11,6 +11,22 @@ export function Signup(){
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
     const [success, setSuccess] = useState("");
+    
+    const signupWithGoogle = () => {
+        if (!GOOGLE_CLIENT_ID || !GOOGLE_REDIRECT_URI) {
+            setError("Google sign-in is not configured. Please set VITE_GOOGLE_CLIENT_ID and VITE_GOOGLE_REDIRECT_URI.");
+            return;
+        }
+        const baseUrl = "https://accounts.google.com/o/oauth2/v2/auth";
+        const params = new URLSearchParams({
+            client_id: GOOGLE_CLIENT_ID,
+            redirect_uri: GOOGLE_REDIRECT_URI,
+            response_type: "code",
+            scope: "openid email profile",
+            prompt: "select_account"
+        });
+        window.location.href = `${baseUrl}?${params.toString()}`;
+    }
 
     const signup = async () => {
         const name = nameRef.current?.value ?? "";
@@ -104,6 +120,18 @@ export function Signup(){
                     )}
 
                     <div className="space-y-4">
+                        <button
+                            onClick={signupWithGoogle}
+                            className="w-full flex items-center justify-center gap-2 border border-gray-300 rounded-lg py-2.5 hover:bg-gray-50"
+                        >
+                            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-5 h-5" />
+                            <span className="text-sm font-medium text-gray-700">Continue with Google</span>
+                        </button>
+                        <div className="flex items-center gap-3">
+                            <div className="flex-1 h-px bg-gray-200"></div>
+                            <span className="text-xs text-gray-400">or</span>
+                            <div className="flex-1 h-px bg-gray-200"></div>
+                        </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2">
                                 Full Name

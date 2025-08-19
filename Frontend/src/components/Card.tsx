@@ -6,6 +6,7 @@ import { type JSX, useEffect, useState } from "react";
 import TwitterIcon from "../icons/TwitterIcon";
 import { BACKEND_URL } from "../config";
 import { Link } from "react-router-dom";
+import axios from "axios";
 
 interface CardProps {
   type: string
@@ -13,12 +14,50 @@ interface CardProps {
   title: string;
   link: string; 
   description?: string;
-  reload?: ()=> void,
   date?: string; // Optional date prop for displaying creation date
-  _id?: string; // Optional ID for delete operations
+  _id: string; 
+  isViewOnly?: boolean; // Optional prop to hide delete functionality
+  isPublic?: boolean; // New prop to indicate public/private status
 }
 
 const Card = (props: CardProps) => {
+
+  const [isPublic, setIsPublic] = useState(props.isPublic ?? false);
+
+  // Sync isPublic state with props.isPublic changes
+  useEffect(() => {
+    setIsPublic(props.isPublic ?? false);
+  }, [props.isPublic]);
+
+  // Toggle public/private status
+  const handleTogglePublic = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        alert("Please log in first");
+        return;
+      }
+      // Update public/private status in backend
+      const res = await axios.patch(`${BACKEND_URL}/api/v1/content/public-toggle`, {
+        id: props._id,
+        isPublic: !isPublic
+      }, {
+        headers: {
+          "token": token,
+          "Content-Type": "application/json"
+        }
+      });
+      console.log(res)
+      if (res.status === 200) {
+        setIsPublic(!isPublic);
+      } else {
+        alert("Failed to update public/private status");
+      }
+    } catch (err) {
+      console.error("Toggle public/private error:", err);
+      alert("Failed to update status. Please try again.");
+    }
+  };
   const [thumbnail, setThumbnail] = useState<string | null>(null);
   const [showFullText, setShowFullText] = useState(false);
   const [tweetData, setTweetData] = useState<any>(null);
@@ -83,6 +122,12 @@ const Card = (props: CardProps) => {
       setLoadingTweet(false);
     }
   };
+  if(props.isPublic !== undefined) {
+    // Sync isPublic state with props.isPublic changes
+    useEffect(() => {
+      setIsPublic(props.isPublic ?? false);
+    }, [props.isPublic]);
+  }
 
   // Content preview based on type
   if (props.type === "youtube") {
@@ -372,26 +417,22 @@ const Card = (props: CardProps) => {
         alert("Please log in first");
         return;
       }
-
       // Use the ID if available, otherwise fall back to title
-      const deleteUrl = props._id 
-        ? `http://192.168.85.214:3000/api/v1/content/${props._id}`
-        : `http://192.168.85.214:3000/api/v1/delete/${props.title}`;
-
-      const res = await fetch(deleteUrl, {
-        method: "DELETE",
+      const res = await axios.delete(`${BACKEND_URL}/api/v1/content`,{
         headers: {
           "token": token,
           "Content-Type": "application/json"
+        },
+        data: {
+          id: props._id
         }
       });
-      
-      if(res.ok){
+
+      if(res.status === 200){
         alert("Item deleted successfully");
-        props.reload && props.reload();
         return;
       } else {
-        const errorData = await res.json().catch(() => ({}));
+        const errorData = await res.data.catch(() => ({}));
         alert(`Failed to delete item: ${errorData.message || 'Unknown error'}`);
       }
     }catch(err){
@@ -402,7 +443,10 @@ const Card = (props: CardProps) => {
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden hover:shadow-lg transition-shadow duration-200 flex flex-col h-80">
+    <div className="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden transition-all duration-300 flex flex-col h-80" style={{ transition: 'transform 0.3s' }}
+      onMouseEnter={e => (e.currentTarget.style.transform = 'translateY(-10px)')}
+      onMouseLeave={e => (e.currentTarget.style.transform = 'translateY(0)')}
+    >
       {/* Header */}
       <div className="px-4 py-3 border-b border-gray-100 flex justify-between items-center">
         <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -414,14 +458,36 @@ const Card = (props: CardProps) => {
             {props.title}
           </h3>
         </div>
-        <button 
-          onClick={deleteHandle}
-          className="p-1 hover:bg-red-50 hover:text-red-600 rounded transition-colors duration-200 flex-shrink-0"
-        >
-          <DeleteIcon />
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Public/Private Toggle - hide if isViewOnly */}
+          {!props.isViewOnly && (
+            <>
+              <button
+                onClick={handleTogglePublic}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${isPublic ? 'bg-blue-600' : 'bg-gray-300'}`}
+                title={isPublic ? 'Public' : 'Private'}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isPublic ? 'translate-x-6' : 'translate-x-1'}`}
+                />
+              </button>
+              <span className={`text-xs font-semibold ${isPublic ? 'text-blue-600' : 'text-gray-500'}`}>{isPublic ? 'Public' : 'Private'}</span>
+            </>
+          )}
+          {/* Delete Button */}
+          {!props.isViewOnly && (
+            <button 
+              onClick={deleteHandle}
+              className="p-1 hover:bg-red-50 hover:text-red-600 rounded transition-colors duration-200 flex-shrink-0"
+            >
+              <DeleteIcon />
+            </button>
+          )}
+        </div>
       </div>
 
+
+      
       {/* Content Area */}
       <div className="flex-1 overflow-hidden">
         {contentPreview}

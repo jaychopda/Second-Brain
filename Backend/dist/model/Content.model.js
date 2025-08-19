@@ -65,6 +65,10 @@ const contentSchema = new mongoose_1.default.Schema({
         ref: "Users",
         required: true
     },
+    isPublic: {
+        type: Boolean,
+        default: false
+    }
 });
 const ContentModel = mongoose_1.default.model("Content", contentSchema);
 exports.ContentModel = ContentModel;

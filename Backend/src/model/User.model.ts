@@ -8,6 +8,22 @@ const User = new mongoose.Schema({
     password:{
         type:String,
         required:true
+    },
+    name:{
+        type:String,
+        required:false,
+        default: ''
+    },
+    googleId:{
+        type:String,
+        required:false,
+        unique:false,
+        default: ''
+    },
+    avatar:{
+        type:String,
+        required:false,
+        default: ''
     }
 })
 

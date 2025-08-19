@@ -14,6 +14,22 @@ const User = new mongoose_1.default.Schema({
     password: {
         type: String,
         required: true
+    },
+    name: {
+        type: String,
+        required: false,
+        default: ''
+    },
+    googleId: {
+        type: String,
+        required: false,
+        unique: false,
+        default: ''
+    },
+    avatar: {
+        type: String,
+        required: false,
+        default: ''
     }
 });
 const UserModel = mongoose_1.default.model("Users", User);

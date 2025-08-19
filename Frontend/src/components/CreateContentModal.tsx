@@ -5,6 +5,7 @@ import { BACKEND_URL } from "../config";
 
 export const CreateContentModel = ({open, onClose}: {open: boolean, onClose: () => void})=>{
     const titleRef = useRef<HTMLInputElement>(null);
+        const [title, setTitle] = useState('');
     const linkRef = useRef<HTMLInputElement>(null);
     const tagsRef = useRef<HTMLInputElement>(null);
     const descriptionRef = useRef<HTMLTextAreaElement>(null);
@@ -16,6 +17,48 @@ export const CreateContentModel = ({open, onClose}: {open: boolean, onClose: () 
     const [isDragging, setIsDragging] = useState(false);
     const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
     const [uploading, setUploading] = useState(false);
+
+    // Add state for recording
+    const [isRecording, setIsRecording] = useState(false);
+    const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
+    const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+    const audioChunksRef = useRef<Blob[]>([]);
+
+        // Audio recording handler
+        const handleRecordAudio = async () => {
+            if (isRecording) {
+                // Stop recording
+                mediaRecorderRef.current?.stop();
+                setIsRecording(false);
+            } else {
+                // Start recording
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    alert('Audio recording is not supported in this browser.');
+                    return;
+                }
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    const mediaRecorder = new MediaRecorder(stream);
+                    mediaRecorderRef.current = mediaRecorder;
+                    audioChunksRef.current = [];
+                    mediaRecorder.ondataavailable = (event) => {
+                        if (event.data.size > 0) {
+                            audioChunksRef.current.push(event.data);
+                        }
+                    };
+                    mediaRecorder.onstop = () => {
+                        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+                        setAudioBlob(audioBlob);
+                        // Stop all tracks to release the mic
+                        stream.getTracks().forEach(track => track.stop());
+                    };
+                    mediaRecorder.start();
+                    setIsRecording(true);
+                } catch (err) {
+                    alert('Could not start audio recording: ' + (err instanceof Error ? err.message : String(err)));
+                }
+            }
+        };
 
     // Set initial modal position in center-right
     useEffect(() => {
@@ -62,7 +105,7 @@ export const CreateContentModel = ({open, onClose}: {open: boolean, onClose: () 
     const handleSubmit = async () => {
         if (uploading) return; // Prevent multiple submissions
         
-        const title = titleRef.current?.value;
+        // Use state value for title
         const tags = tagsRef.current?.value;
         
         if (!title || title.trim() === '') {
@@ -87,6 +130,13 @@ export const CreateContentModel = ({open, onClose}: {open: boolean, onClose: () 
                     const uploadedUrl = await uploadFileToCloudinary(audioFile);
                     link = uploadedUrl;
                     console.log("Audio uploaded successfully:", uploadedUrl);
+                } else if (audioBlob) {
+                    // Upload recorded audioBlob
+                    const recordedFile = new File([audioBlob], `recorded-audio-${Date.now()}.webm`, { type: 'audio/webm' });
+                    console.log("Uploading recorded audio blob:", recordedFile.name);
+                    const uploadedUrl = await uploadFileToCloudinary(recordedFile);
+                    link = uploadedUrl;
+                    console.log("Recorded audio uploaded successfully:", uploadedUrl);
                 }
             } else if (selectedType === 'image') {
                 // Handle image file upload
@@ -190,6 +240,7 @@ export const CreateContentModel = ({open, onClose}: {open: boolean, onClose: () 
         if (descriptionRef.current) descriptionRef.current.value = '';
         if (audioRef.current) audioRef.current.value = '';
         if (imageRef.current) imageRef.current.value = '';
+        setTitle('');
         setSelectedType('');
         onClose();
     };
@@ -264,6 +315,8 @@ export const CreateContentModel = ({open, onClose}: {open: boolean, onClose: () 
                     <input
                         ref={titleRef}
                         type="text"
+                            value={title}
+                            onChange={e => setTitle(e.target.value)}
                         placeholder="Enter a descriptive title"
                         className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                     />
@@ -291,6 +344,20 @@ export const CreateContentModel = ({open, onClose}: {open: boolean, onClose: () 
                             accept="audio/*"
                             className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                         />
+                        {/* Record Audio button - UI only */}
+                        <div className="mt-4 flex flex-col items-start">
+                            <button
+                                type="button"
+                                className={`px-4 py-2 rounded-lg bg-blue-600 text-white font-semibold shadow hover:bg-blue-700 transition ${isRecording ? 'bg-red-600' : ''}`}
+                                onClick={handleRecordAudio}
+                            >
+                                {isRecording ? 'Stop Recording' : 'Record Audio'}
+                            </button>
+                            {/* Show audio preview if recorded */}
+                            {audioBlob && (
+                                <audio controls src={URL.createObjectURL(audioBlob)} className="mt-2" />
+                            )}
+                        </div>
                     </div>
                 )}
 
@@ -445,8 +512,8 @@ export const CreateContentModel = ({open, onClose}: {open: boolean, onClose: () 
                                 Cancel
                             </button>
                             <button
-                                onClick={handleSubmit}
-                                disabled={!titleRef.current?.value || uploading}
+                                    onClick={handleSubmit}
+                                    disabled={!title.trim() || uploading}
                                 className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center space-x-2"
                             >
                                 {uploading && (

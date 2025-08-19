@@ -15,6 +15,7 @@ import cors from 'cors'
 import axios from 'axios'
 import { uploadOnCloudinary } from './utils/cloudinary'
 import { upload } from "./middlewares/multer";
+import { OAuth2Client } from 'google-auth-library'
 // Note: You'll need to install multer first: npm install multer @types/multer
 // import { upload } from './middlewares/multer'
 
@@ -25,6 +26,17 @@ dotenv.config()
 app.use(express.json({ limit: '50mb' }))
 app.use(express.urlencoded({ limit: '50mb', extended: true }))
 app.use(cors())
+
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET
+const GOOGLE_REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI || 'http://localhost:5173/oauth/google/callback'
+
+if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
+    console.error('Google OAuth is not configured. Please set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in your environment.')
+    process.exit(1)
+}
+
+const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI)
 
 async function main(){
     connectDB()
@@ -44,6 +56,7 @@ app.get('/',(req:any,res:any)=>{
 app.post('/api/v1/signup',async (req:any,res:any)=>{
     const username = req.body.username
     const password = req.body.password
+    const name = req.body.name || ''
 
     const requiredBody = z.object({
         password : z.string(),
@@ -68,7 +81,8 @@ app.post('/api/v1/signup',async (req:any,res:any)=>{
             
             await UserModel.create({
                 username,
-                password:hashedPassword
+                password:hashedPassword,
+                name
             })
     
             res.status(200).json({
@@ -133,6 +147,79 @@ app.post('/api/v1/signin',async(req:any, res:any)=>{
     }
 })
 
+// Google OAuth: exchange code for tokens and sign in/up the user
+app.post('/api/v1/auth/google', async (req:any, res:any) => {
+    try {
+        const { code } = req.body
+        if (!code) {
+            return res.status(400).json({ message: 'Authorization code is required' })
+        }
+
+        const { tokens } = await googleClient.getToken({ code, redirect_uri: GOOGLE_REDIRECT_URI })
+        if (!tokens.id_token) {
+            return res.status(400).json({ message: 'Failed to obtain ID token from Google' })
+        }
+
+        const ticket = await googleClient.verifyIdToken({ idToken: tokens.id_token, audience: GOOGLE_CLIENT_ID })
+        const payload = ticket.getPayload()
+        if (!payload) {
+            return res.status(400).json({ message: 'Invalid Google ID token' })
+        }
+
+        const googleId = payload.sub as string
+        const email = (payload.email || '').toLowerCase()
+        const name = payload.name || ''
+        const picture = payload.picture || ''
+
+        if (!email) {
+            return res.status(400).json({ message: 'Google account has no email' })
+        }
+
+        let user = await UserModel.findOne({ username: email })
+        if (!user) {
+            user = await UserModel.create({
+                username: email,
+                password: await bcrypt.hash(random(16), 10),
+                name,
+                googleId,
+                avatar: picture
+            })
+        } else {
+            // Upsert google fields if missing
+            const shouldUpdate = (!user.googleId && googleId) || (!user.name && name) || (!user.avatar && picture)
+            if (shouldUpdate) {
+                user.googleId = user.googleId || googleId
+                user.name = user.name || name
+                user.avatar = user.avatar || picture
+                await user.save()
+            }
+        }
+
+        const USER_JWT_SECRET = "drf36ftceyuh34u45y3iui34gbtbvenm23j4hb9nem"
+        const token = jwt.sign({ id: user._id }, USER_JWT_SECRET)
+
+        res.status(200).json({
+            message: 'Authenticated with Google',
+            token
+        })
+    } catch (e:any) {
+        console.error('Google auth error:', e?.message || e)
+        res.status(500).json({ message: 'Failed to authenticate with Google' })
+    }
+})
+
+// Return current user's profile
+app.get('/api/v1/me', authMiddleware, async (req:any, res:any) => {
+    try {
+        const userId = req.user?.id
+        const user = await UserModel.findById(userId).select('username name avatar googleId')
+        if (!user) return res.status(404).json({ message: 'User not found' })
+        res.status(200).json({ user })
+    } catch (e) {
+        res.status(500).json({ message: 'Server Error' })
+    }
+})
+
 app.post('/api/v1/content', authMiddleware, async(req:any, res:any)=>{
     const token = req.headers.token
     if(!token){
@@ -151,6 +238,7 @@ app.post('/api/v1/content', authMiddleware, async(req:any, res:any)=>{
             });
 
             const parseDataWithSuccess = requiredBody.safeParse(req.body)
+    
             if(!parseDataWithSuccess.success){
                 console.log(parseDataWithSuccess.error);
                 return res.status(411).json({
@@ -207,8 +295,7 @@ app.get('/api/v1/content', authMiddleware, async(req:any, res:any)=>{
 
 app.delete('/api/v1/content', authMiddleware, async(req:any, res:any)=>{
     const user = req.user;
-    const { contentId } = req.body;
-
+    const  contentId  = req.body.id;
     if (!contentId) {
         return res.status(400).json({
             message: "Content ID is required"
@@ -490,7 +577,6 @@ app.get('/api/v1/twitter-embed/:tweetId', async (req: any, res: any) => {
                 
                 if (response.data.html) {
                     htmlContent = response.data.html;
-                    console.log(`Successfully fetched with config: ${config}`);
                     break;
                 }
             } catch (configError) {
@@ -507,7 +593,6 @@ app.get('/api/v1/twitter-embed/:tweetId', async (req: any, res: any) => {
             throw new Error('All oEmbed configurations failed');
         }
 
-        console.log('HTML Content received:', htmlContent.substring(0, 800)); // More detailed debug log
         
         // Enhanced image extraction with comprehensive patterns
         const images = [];
@@ -612,9 +697,7 @@ app.get('/api/v1/twitter-embed/:tweetId', async (req: any, res: any) => {
         const hasActualMedia = uniqueImages.length > 0 || uniqueVideos.length > 0;
 
         // If we detect media hints but no actual media URLs, try to construct them
-        if (mediaHints && !hasActualMedia) {
-            console.log('Media detected but no URLs found, attempting URL construction...');
-            
+        if (mediaHints && !hasActualMedia) {            
             // Look for pic.twitter.com links and try to construct media URLs
             const picTwitterMatches = htmlContent.match(/pic\.twitter\.com\/(\w+)/gi);
             if (picTwitterMatches) {
@@ -627,12 +710,6 @@ app.get('/api/v1/twitter-embed/:tweetId', async (req: any, res: any) => {
             }
         }
 
-        console.log('Media extraction results:', {
-            images: uniqueImages,
-            videos: uniqueVideos,
-            mediaIndicators,
-            totalFound: uniqueImages.length + uniqueVideos.length
-        });
 
         // Comprehensive response with all media information
         const tweetData = {
@@ -685,80 +762,150 @@ app.get('/api/v1/twitter-embed/:tweetId', async (req: any, res: any) => {
     }
 });
 
-// Debug endpoint to test media extraction for specific tweets
-app.get('/api/v1/debug-tweet/:tweetId', async (req: any, res: any) => {
+// Simple AI Chat endpoint (placeholder - replace with actual AI service)
+app.post('/api/v1/ai-chat', authMiddleware, async (req: any, res: any) => {
     try {
-        const { tweetId } = req.params;
-        const twitterUrl = `https://twitter.com/user/status/${tweetId}`;
+        const { message, reference } = req.body;
+
+        console.log("AI Chat Request:", message, reference);
         
-        // Test all configurations and return results
-        const results = [];
-        
-        const configs = [
-            { name: 'Standard', url: `https://publish.twitter.com/oembed?url=${encodeURIComponent(twitterUrl)}&omit_script=true&dnt=true&theme=light&maxwidth=550` },
-            { name: 'Large', url: `https://publish.twitter.com/oembed?url=${encodeURIComponent(twitterUrl)}&omit_script=true&dnt=true&theme=light&maxwidth=800` },
-            { name: 'Video', url: `https://publish.twitter.com/oembed?url=${encodeURIComponent(twitterUrl)}&omit_script=false&dnt=false&theme=light&maxwidth=800&widget_type=video` },
-            { name: 'No Hide Media', url: `https://publish.twitter.com/oembed?url=${encodeURIComponent(twitterUrl)}&omit_script=true&dnt=true&theme=light&maxwidth=800&hide_media=false` }
-        ];
-        
-        for (const config of configs) {
-            try {
-                const response = await axios.get(config.url, {
-                    timeout: 10000,
-                    headers: {
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-                        'Accept': 'application/json'
-                    }
-                });
-                
-                const html = response.data.html || '';
-                const mediaUrls = [];
-                
-                // Extract all potential media URLs
-                const patterns = [
-                    /pbs\.twimg\.com\/media\/[^"'\s]+/gi,
-                    /pic\.twitter\.com\/\w+/gi,
-                    /video\.twimg\.com\/[^"'\s]+/gi
-                ];
-                
-                for (const pattern of patterns) {
-                    const matches = html.match(pattern) || [];
-                    mediaUrls.push(...matches);
-                }
-                
-                results.push({
-                    config: config.name,
-                    success: true,
-                    htmlLength: html.length,
-                    mediaUrls: [...new Set(mediaUrls)],
-                    hasPicTwitter: /pic\.twitter\.com/i.test(html),
-                    hasMediaDomains: /pbs\.twimg\.com/i.test(html)
-                });
-            } catch (error: any) {
-                results.push({
-                    config: config.name,
-                    success: false,
-                    error: error.message
-                });
-            }
+        if (!message) {
+            return res.status(400).json({
+                message: "Message is required"
+            });
         }
-        
+
+        // Simple mock AI responses (replace this with actual AI service like OpenAI)
+        const responses = [
+            "I understand your question. Based on your Second Brain content, I can help you find relevant information.",
+            "That's an interesting point! Let me think about that...",
+            "I can help you organize that information better. Have you considered categorizing it?",
+            "Great question! Your Second Brain contains similar topics that might be useful.",
+            "I'm here to help you make connections between your saved content and new ideas.",
+            "That reminds me of some content you've saved before. Would you like me to search for related items?",
+            "I can help you synthesize that information with your existing knowledge base.",
+            "Interesting! I can see how that connects to your previous thoughts and saved content."
+        ];
+
+        // Simple keyword-based responses
+        let aiReply = "";
+        const lowerMessage = message.toLowerCase();
+
+        // if (lowerMessage.includes('search') || lowerMessage.includes('find')) {
+        //     aiReply = "I can help you search through your Second Brain! What specific topic or keyword are you looking for?";
+        // } else if (lowerMessage.includes('organize') || lowerMessage.includes('structure')) {
+        //     aiReply = "Great idea! I can suggest ways to organize your content better. Consider using tags and categories to group related items.";
+        // } else if (lowerMessage.includes('connect') || lowerMessage.includes('relate')) {
+        //     aiReply = "Making connections is key to a powerful Second Brain! I can help you identify patterns and relationships between your saved content.";
+        // } else if (lowerMessage.includes('summary') || lowerMessage.includes('summarize')) {
+        //     aiReply = "I can help you summarize and distill key insights from your content. What would you like me to focus on?";
+        // } else if (lowerMessage.includes('hello') || lowerMessage.includes('hi')) {
+        //     aiReply = "Hello! I'm your AI assistant for your Second Brain. I can help you search, organize, and make connections between your saved content. What would you like to explore today?";
+        // } else {
+        //     // Random response for general queries
+        //     aiReply = responses[Math.floor(Math.random() * responses.length)];
+        // }
+
+        const token = req.headers.token
+        const decoded = jwt.decode(token)
+        if(!decoded){
+            return res.status(403).json({
+                message:"Token is required"
+            })
+        }
+
+        let userId: string | undefined;
+        if (typeof decoded === "object" && decoded !== null && "id" in decoded) {
+            userId = (decoded as { id: string }).id;
+        } else {
+            return res.status(403).json({
+                message: "Invalid token payload"
+            });
+        }
+
+        const response = await axios.post('http://0.0.0.0:8000/ask',{
+            query: message,
+            userId: userId,
+            ref: reference
+        })
+
         res.status(200).json({
-            tweetId,
-            twitterUrl,
-            results,
-            summary: {
-                totalConfigs: configs.length,
-                successfulConfigs: results.filter(r => r.success).length,
-                totalMediaUrls: results.reduce((acc, r) => acc + (r.mediaUrls?.length || 0), 0)
-            }
+            reply: response.data.response || aiReply
         });
-    } catch (error: any) {
+
+    } catch (error) {
+        console.error('AI Chat error:', error);
         res.status(500).json({
-            error: 'Debug failed',
-            details: error.message
+            message: "AI service temporarily unavailable. Please try again."
         });
     }
 });
+
+// Toggle public/private status for content
+app.patch('/api/v1/content/public-toggle', authMiddleware, async (req:any, res:any) => {
+    const user = req.user;
+    const { id, isPublic } = req.body;
+    if (!id || typeof isPublic !== 'boolean') {
+        return res.status(400).json({ message: 'Content ID and isPublic are required' });
+    }
+    try {
+        const content = await ContentModel.findOneAndUpdate(
+            { _id: id, userId: user.id },
+            { isPublic },
+            { new: true }
+        );
+        if (!content) {
+            return res.status(404).json({ message: 'Content not found' });
+        }
+        res.status(200).json({ message: 'Content public/private status updated', content });
+    } catch (e) {
+        console.error(e);
+        res.status(500).json({ message: 'Server Error' });
+    }
+});
+
+app.post('api/v1/content/public-toggle',(req : any,res:any)=>{
+   const { id, isPublic } = req.body;
+   const token = req.headers.token;
+
+   if (!token) {
+       return res.status(403).json({
+           message: "Token is required"
+       });
+   }
+
+   const decoded = jwt.decode(token);
+   if (!decoded) {
+       return res.status(403).json({
+           message: "Invalid token"
+       });
+   }
+
+   const userId = (decoded as { id: string }).id;
+
+   // Update the public/private status in the database
+   // Define the updateContentVisibility function here
+    async function updateContentVisibility(contentId: string, userId: string, isPublic: boolean) {
+       const content = await ContentModel.findOne({ _id: contentId, userId: userId });
+       if (!content) {
+           throw new Error("Content not found or unauthorized");
+       }
+       content.isPublic = isPublic;
+       await content.save();
+    }
+
+    updateContentVisibility(id, userId, isPublic)
+       .then(() => {
+           res.status(200).json({
+               message: "Content visibility updated successfully"
+           });
+       })
+       .catch((error) => {
+           console.error('Error updating content visibility:', error);
+           res.status(500).json({
+               message: "Failed to update content visibility"
+           });
+       });
+})
 
 main()

@@ -30,6 +30,10 @@ const contentSchema = new mongoose.Schema({
         ref: "Users",
         required: true
     },
+    isPublic: {
+        type: Boolean,
+        default: false
+    }
 })
 
 const ContentModel = mongoose.model("Content", contentSchema);
