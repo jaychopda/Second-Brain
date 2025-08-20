@@ -37,9 +37,14 @@ dotenv_1.default.config();
 app.use(express_1.default.json({ limit: '50mb' }));
 app.use(express_1.default.urlencoded({ limit: '50mb', extended: true }));
 app.use((0, cors_1.default)());
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '535999537603-mhdimfbc9ighvbc3hj4cvrriqmq6l68i.apps.googleusercontent.com';
-const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || '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';
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
 const GOOGLE_REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI || 'http://localhost:5173/oauth/google/callback';
+const JWT_SECRET = process.env.JWT_SECRET || 'drf36ftceyuh34u45y3iui34gbtbvenm23j4hb9nem';
+if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
+    console.error('Google OAuth is not configured. Please set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in your environment.');
+    process.exit(1);
+}
 const googleClient = new google_auth_library_1.OAuth2Client(GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI);
 function main() {
     return __awaiter(this, void 0, void 0, function* () {
@@ -54,6 +59,18 @@ const User = zod_1.default.object({
 app.get('/', (req, res) => {
     res.write("Hello");
     res.end();
+});
+// Debug endpoint to check OAuth configuration
+app.get('/api/v1/debug/oauth', (req, res) => {
+    res.json({
+        clientId: GOOGLE_CLIENT_ID ? 'Set' : 'Not set',
+        clientSecret: GOOGLE_CLIENT_SECRET ? 'Set' : 'Not set',
+        redirectUri: GOOGLE_REDIRECT_URI,
+        hasGoogleClient: !!googleClient,
+        clientIdLength: (GOOGLE_CLIENT_ID === null || GOOGLE_CLIENT_ID === void 0 ? void 0 : GOOGLE_CLIENT_ID.length) || 0,
+        clientSecretLength: (GOOGLE_CLIENT_SECRET === null || GOOGLE_CLIENT_SECRET === void 0 ? void 0 : GOOGLE_CLIENT_SECRET.length) || 0,
+        nodeEnv: process.env.NODE_ENV
+    });
 });
 app.post('/api/v1/signup', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const username = req.body.username;
@@ -112,11 +129,10 @@ app.post('/api/v1/signin', (req, res) => __awaiter(void 0, void 0, void 0, funct
             const user = yield User_model_1.UserModel.findOne({ username });
             if (user) {
                 const hashedPassword = yield bcrypt_1.default.compare(password, user.password);
-                const USER_JWT_SECRET = "drf36ftceyuh34u45y3iui34gbtbvenm23j4hb9nem";
                 if (hashedPassword) {
                     const token = jsonwebtoken_1.default.sign({
                         id: user._id
-                    }, USER_JWT_SECRET);
+                    }, JWT_SECRET);
                     res.status(200).json({
                         message: "Login Successfully",
                         token: token
@@ -148,10 +164,12 @@ app.post('/api/v1/auth/google', (req, res) => __awaiter(void 0, void 0, void 0, 
         if (!code) {
             return res.status(400).json({ message: 'Authorization code is required' });
         }
+        // Exchange authorization code for tokens
         const { tokens } = yield googleClient.getToken({ code, redirect_uri: GOOGLE_REDIRECT_URI });
         if (!tokens.id_token) {
             return res.status(400).json({ message: 'Failed to obtain ID token from Google' });
         }
+        // Verify the ID token
         const ticket = yield googleClient.verifyIdToken({ idToken: tokens.id_token, audience: GOOGLE_CLIENT_ID });
         const payload = ticket.getPayload();
         if (!payload) {
@@ -164,8 +182,10 @@ app.post('/api/v1/auth/google', (req, res) => __awaiter(void 0, void 0, void 0, 
         if (!email) {
             return res.status(400).json({ message: 'Google account has no email' });
         }
+        // Find or create user
         let user = yield User_model_1.UserModel.findOne({ username: email });
         if (!user) {
+            // Create new user
             user = yield User_model_1.UserModel.create({
                 username: email,
                 password: yield bcrypt_1.default.hash((0, utils_1.random)(16), 10),
@@ -175,7 +195,7 @@ app.post('/api/v1/auth/google', (req, res) => __awaiter(void 0, void 0, void 0, 
             });
         }
         else {
-            // Upsert google fields if missing
+            // Update existing user's Google information if missing
             const shouldUpdate = (!user.googleId && googleId) || (!user.name && name) || (!user.avatar && picture);
             if (shouldUpdate) {
                 user.googleId = user.googleId || googleId;
@@ -184,16 +204,38 @@ app.post('/api/v1/auth/google', (req, res) => __awaiter(void 0, void 0, void 0, 
                 yield user.save();
             }
         }
-        const USER_JWT_SECRET = "drf36ftceyuh34u45y3iui34gbtbvenm23j4hb9nem";
-        const token = jsonwebtoken_1.default.sign({ id: user._id }, USER_JWT_SECRET);
+        // Generate JWT token
+        const token = jsonwebtoken_1.default.sign({ id: user._id }, JWT_SECRET);
         res.status(200).json({
             message: 'Authenticated with Google',
-            token
+            token,
+            user: {
+                id: user._id,
+                username: user.username,
+                name: user.name,
+                avatar: user.avatar
+            }
         });
     }
     catch (e) {
-        console.error('Google auth error:', (e === null || e === void 0 ? void 0 : e.message) || e);
-        res.status(500).json({ message: 'Failed to authenticate with Google' });
+        console.error('Google auth error:', e);
+        // Provide more specific error messages
+        if (e.code === 'invalid_grant') {
+            return res.status(400).json({ message: 'Authorization code has expired or is invalid' });
+        }
+        if (e.code === 'access_denied') {
+            return res.status(400).json({ message: 'Access was denied by the user' });
+        }
+        if (e.code === 'invalid_client') {
+            return res.status(400).json({
+                message: 'Invalid OAuth client credentials. Please check your Google OAuth configuration.',
+                details: 'This usually means the client ID or client secret is incorrect, or the OAuth app is not properly configured in Google Console.'
+            });
+        }
+        res.status(500).json({
+            message: 'Failed to authenticate with Google',
+            error: e.message || 'Unknown error'
+        });
     }
 }));
 // Return current user's profile

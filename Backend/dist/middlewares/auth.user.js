@@ -14,13 +14,20 @@ function authMiddleware(req, res, next) {
             message: "Unauthorized access, token is missing"
         });
     }
-    const secretKey = "drf36ftceyuh34u45y3iui34gbtbvenm23j4hb9nem";
-    const decodedToken = jsonwebtoken_1.default.verify(token, secretKey);
-    if (!decodedToken) {
+    const secretKey = process.env.JWT_SECRET || "drf36ftceyuh34u45y3iui34gbtbvenm23j4hb9nem";
+    try {
+        const decodedToken = jsonwebtoken_1.default.verify(token, secretKey);
+        if (!decodedToken) {
+            return res.status(403).json({
+                message: "Forbidden access, invalid token"
+            });
+        }
+        req.user = jsonwebtoken_1.default.decode(token);
+        next();
+    }
+    catch (error) {
         return res.status(403).json({
             message: "Forbidden access, invalid token"
         });
     }
-    req.user = jsonwebtoken_1.default.decode(token);
-    next();
 }

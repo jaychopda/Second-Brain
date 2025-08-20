@@ -30,6 +30,7 @@ app.use(cors())
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET
 const GOOGLE_REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI || 'http://localhost:5173/oauth/google/callback'
+const JWT_SECRET = process.env.JWT_SECRET || 'drf36ftceyuh34u45y3iui34gbtbvenm23j4hb9nem'
 
 if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
     console.error('Google OAuth is not configured. Please set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in your environment.')
@@ -51,6 +52,19 @@ const User = z.object({
 app.get('/',(req:any,res:any)=>{
     res.write("Hello")
     res.end()
+})
+
+// Debug endpoint to check OAuth configuration
+app.get('/api/v1/debug/oauth', (req:any, res:any) => {
+    res.json({
+        clientId: GOOGLE_CLIENT_ID ? 'Set' : 'Not set',
+        clientSecret: GOOGLE_CLIENT_SECRET ? 'Set' : 'Not set',
+        redirectUri: GOOGLE_REDIRECT_URI,
+        hasGoogleClient: !!googleClient,
+        clientIdLength: GOOGLE_CLIENT_ID?.length || 0,
+        clientSecretLength: GOOGLE_CLIENT_SECRET?.length || 0,
+        nodeEnv: process.env.NODE_ENV
+    })
 })
 
 app.post('/api/v1/signup',async (req:any,res:any)=>{
@@ -118,12 +132,10 @@ app.post('/api/v1/signin',async(req:any, res:any)=>{
             if(user){
                 const hashedPassword = await bcrypt.compare(password,user.password)
                 
-                const USER_JWT_SECRET = "drf36ftceyuh34u45y3iui34gbtbvenm23j4hb9nem"
-
                 if(hashedPassword){ 
                     const token = jwt.sign({
                         id:user._id
-                    },USER_JWT_SECRET)
+                    },JWT_SECRET)
 
                     res.status(200).json({
                         message:"Login Successfully",
@@ -151,17 +163,22 @@ app.post('/api/v1/signin',async(req:any, res:any)=>{
 app.post('/api/v1/auth/google', async (req:any, res:any) => {
     try {
         const { code } = req.body
+        
         if (!code) {
             return res.status(400).json({ message: 'Authorization code is required' })
         }
 
+        // Exchange authorization code for tokens
         const { tokens } = await googleClient.getToken({ code, redirect_uri: GOOGLE_REDIRECT_URI })
+
         if (!tokens.id_token) {
             return res.status(400).json({ message: 'Failed to obtain ID token from Google' })
         }
 
+        // Verify the ID token
         const ticket = await googleClient.verifyIdToken({ idToken: tokens.id_token, audience: GOOGLE_CLIENT_ID })
         const payload = ticket.getPayload()
+
         if (!payload) {
             return res.status(400).json({ message: 'Invalid Google ID token' })
         }
@@ -175,8 +192,11 @@ app.post('/api/v1/auth/google', async (req:any, res:any) => {
             return res.status(400).json({ message: 'Google account has no email' })
         }
 
+        // Find or create user
         let user = await UserModel.findOne({ username: email })
+
         if (!user) {
+            // Create new user
             user = await UserModel.create({
                 username: email,
                 password: await bcrypt.hash(random(16), 10),
@@ -185,7 +205,7 @@ app.post('/api/v1/auth/google', async (req:any, res:any) => {
                 avatar: picture
             })
         } else {
-            // Upsert google fields if missing
+            // Update existing user's Google information if missing
             const shouldUpdate = (!user.googleId && googleId) || (!user.name && name) || (!user.avatar && picture)
             if (shouldUpdate) {
                 user.googleId = user.googleId || googleId
@@ -195,16 +215,42 @@ app.post('/api/v1/auth/google', async (req:any, res:any) => {
             }
         }
 
-        const USER_JWT_SECRET = "drf36ftceyuh34u45y3iui34gbtbvenm23j4hb9nem"
-        const token = jwt.sign({ id: user._id }, USER_JWT_SECRET)
+        // Generate JWT token
+        const token = jwt.sign({ id: user._id }, JWT_SECRET)
 
         res.status(200).json({
             message: 'Authenticated with Google',
-            token
+            token,
+            user: {
+                id: user._id,
+                username: user.username,
+                name: user.name,
+                avatar: user.avatar
+            }
         })
     } catch (e:any) {
-        console.error('Google auth error:', e?.message || e)
-        res.status(500).json({ message: 'Failed to authenticate with Google' })
+        console.error('Google auth error:', e)
+        
+        // Provide more specific error messages
+        if (e.code === 'invalid_grant') {
+            return res.status(400).json({ message: 'Authorization code has expired or is invalid' })
+        }
+        
+        if (e.code === 'access_denied') {
+            return res.status(400).json({ message: 'Access was denied by the user' })
+        }
+        
+        if (e.code === 'invalid_client') {
+            return res.status(400).json({ 
+                message: 'Invalid OAuth client credentials. Please check your Google OAuth configuration.',
+                details: 'This usually means the client ID or client secret is incorrect, or the OAuth app is not properly configured in Google Console.'
+            })
+        }
+        
+        res.status(500).json({ 
+            message: 'Failed to authenticate with Google',
+            error: e.message || 'Unknown error'
+        })
     }
 })
 

@@ -173,13 +173,15 @@ export default function Dashboard() {
 
   const handleSecondBrainSearch = async (query: string) => {
     if (!isLoggedIn || !query.trim()) return;
-    
+    console.log("HEllo 1")
     try {
       const response = await axios.get(`${BACKEND_URL}/api/v1/secondBrainSearch/${query}`, {
         headers: {
           token: localStorage.getItem("token") || ""
         }
       });
+      console.log("HEllo 2")
+      console.log(response.data.data)
       setContents(response.data.data);
     } catch (error) {
       console.error("Error in second brain search:", error);
@@ -221,8 +223,8 @@ export default function Dashboard() {
 
   // Handle mouse move for dragging
   useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      if (isDragging) {
+  const handleMouseMove = (e: MouseEvent) => {
+    if (isDragging) {
         setChatPosition({
           x: e.clientX - dragOffset.x,
           y: e.clientY - dragOffset.y

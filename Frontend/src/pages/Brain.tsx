@@ -1,7 +1,7 @@
 import { Button } from '../components/Button'
 import Card from '../components/Card'
 import { PlusIcon } from '../icons/PlusIcon'
-import { ShareIcon } from '../icons/ShareIcon'
+
 import { CreateContentModel } from '../components/CreateContentModal'
 import { useState, useEffect } from 'react'
 import { Sidebar } from '../components/Sidebar'
@@ -71,7 +71,7 @@ function Brain() {
   const [mainContents, setMainContents] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchType, setSearchType] = useState<'normal' | 'secondbrain'>('normal');
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+
   // Set sidebar state based on screen size
   useEffect(() => {
     const tagsSet = new Set<string>();
@@ -107,17 +107,7 @@ function Brain() {
   }, []);
 
   // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as Element;
-      if (!target.closest('.search-dropdown')) {
-        setIsDropdownOpen(false);
-      }
-    };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
 
   // Fetch contents on mount
   useEffect(() => {
@@ -141,22 +131,7 @@ function Brain() {
     fetchContents();
   }, []);
 
-  const refreshContents = async () => {
-    setLoading(true);
-    try {
-      const response = await axios.get(`${BACKEND_URL}/api/v1/content`, {
-        headers: {
-          token: localStorage.getItem("token") || ""
-        }
-      });
-      setMainContents(response.data.contents);
-      setContents(mainContents);
-    } catch (error) {
-      console.error("Error fetching contents:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+
 
   const handleSidebarCall = async (event:any) => {
     const type = event.getAttribute("title");
@@ -233,7 +208,6 @@ function Brain() {
         searchType={searchType}
         onChangeSearchType={(t) => {
           setSearchType(t)
-          setIsDropdownOpen(false)
           setSearchQuery('')
           setContents(mainContents)
         }}

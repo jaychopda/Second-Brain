@@ -122,12 +122,9 @@ const Card = (props: CardProps) => {
       setLoadingTweet(false);
     }
   };
-  if(props.isPublic !== undefined) {
-    // Sync isPublic state with props.isPublic changes
-    useEffect(() => {
-      setIsPublic(props.isPublic ?? false);
-    }, [props.isPublic]);
-  }
+  useEffect(() => {
+    setIsPublic(props.isPublic ?? false);
+  }, [props.isPublic]);
 
   // Content preview based on type
   if (props.type === "youtube") {
