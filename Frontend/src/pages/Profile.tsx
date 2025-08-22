@@ -12,6 +12,11 @@ interface UserProfile {
 export default function Profile(){
     const [user, setUser] = useState<UserProfile | null>(null);
     const [loading, setLoading] = useState(true);
+    const [editableName, setEditableName] = useState('');
+    const [nameLoading, setNameLoading] = useState(false);
+    const [nameMessage, setNameMessage] = useState('');
+    const [nameError, setNameError] = useState('');
+    const [showNameForm, setShowNameForm] = useState(false);
     const [showPasswordForm, setShowPasswordForm] = useState(false);
     const [passwordForm, setPasswordForm] = useState({
         currentPassword: '',
@@ -29,6 +34,7 @@ export default function Profile(){
                     headers: { token: localStorage.getItem('token') || '' }
                 });
                 setUser(res.data.user);
+                setEditableName(res.data.user?.name || '');
             }catch(e){
                 console.error('Failed to load profile', e);
             }finally{
@@ -84,6 +90,28 @@ export default function Profile(){
         }
     };
 
+    const handleNameUpdate = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setNameError('');
+        setNameMessage('');
+        if (!editableName || editableName.trim().length === 0) {
+            setNameError('Name is required');
+            return;
+        }
+        setNameLoading(true);
+        try {
+            const res = await axios.patch(`${BACKEND_URL}/api/v1/user/name`, { name: editableName.trim() }, {
+                headers: { token: localStorage.getItem('token') || '' }
+            });
+            setUser(res.data.user);
+            setNameMessage('Name updated successfully!');
+        } catch (error: any) {
+            setNameError(error.response?.data?.message || 'Failed to update name');
+        } finally {
+            setNameLoading(false);
+        }
+    };
+
     const handleInputChange = (field: string, value: string) => {
         setPasswordForm(prev => ({
             ...prev,
@@ -125,6 +153,59 @@ export default function Profile(){
                     </div>
                 </div>
                 <div className="mt-6">
+                    <h2 className="text-lg font-semibold text-gray-900 mb-2">Profile</h2>
+                    {!showNameForm && (
+                        <button
+                            onClick={() => setShowNameForm(true)}
+                            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm"
+                        >
+                            Change Display Name
+                        </button>
+                    )}
+                    {showNameForm && (
+                        <form onSubmit={handleNameUpdate} className="space-y-3 bg-gray-50 p-4 rounded-lg mb-4 mt-3">
+                            {nameMessage && (
+                                <div className="mb-2 p-3 bg-green-100 border border-green-400 text-green-700 rounded-lg text-sm">{nameMessage}</div>
+                            )}
+                            {nameError && (
+                                <div className="mb-2 p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg text-sm">{nameError}</div>
+                            )}
+                            <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">Display Name</label>
+                            <input
+                                type="text"
+                                id="name"
+                                value={editableName}
+                                onChange={(e) => {
+                                    setEditableName(e.target.value);
+                                    if (nameError) setNameError('');
+                                    if (nameMessage) setNameMessage('');
+                                }}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                placeholder="Enter your name"
+                            />
+                            <div className="pt-1 flex gap-3">
+                                <button
+                                    type="submit"
+                                    disabled={nameLoading}
+                                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {nameLoading ? 'Saving...' : 'Save' }
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setShowNameForm(false);
+                                        setNameError('');
+                                        setNameMessage('');
+                                        setEditableName(user?.name || '');
+                                    }}
+                                    className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                            </div>
+                        </form>
+                    )}
                     <h2 className="text-lg font-semibold text-gray-900 mb-2">Connected Accounts</h2>
                     <div className="flex items-center gap-2 text-sm text-gray-700">
                         <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-4 h-4" />

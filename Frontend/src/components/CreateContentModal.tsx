@@ -2,6 +2,7 @@ import axios from "axios";
 import { CloseIcon } from "../icons/CloseIcon"
 import { useRef, useState, useEffect } from "react";
 import { BACKEND_URL } from "../config";
+import VoiceToText from "./VoiceToText";
 
 export const CreateContentModel = ({open, onClose}: {open: boolean, onClose: () => void})=>{
     const titleRef = useRef<HTMLInputElement>(null);
@@ -332,6 +333,31 @@ export const CreateContentModel = ({open, onClose}: {open: boolean, onClose: () 
                             rows={4}
                             className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-vertical"
                         />
+                        
+                        {/* Voice to Text Feature */}
+                        <div className="mt-4">
+                            <div className="flex items-center space-x-2 mb-2">
+                                <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                                </svg>
+                                <span className="text-sm font-medium text-gray-700">Voice to Text</span>
+                            </div>
+                            <VoiceToText
+                                onTranscriptUpdate={(text) => {
+                                    // Update the textarea with partial results
+                                    if (descriptionRef.current) {
+                                        descriptionRef.current.value = text;
+                                    }
+                                }}
+                                onFinalTranscript={(text) => {
+                                    // Update the textarea with final results
+                                    if (descriptionRef.current) {
+                                        descriptionRef.current.value = text;
+                                    }
+                                }}
+                                disabled={uploading}
+                            />
+                        </div>
                     </div>
                 )}
 

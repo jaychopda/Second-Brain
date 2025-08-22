@@ -266,6 +266,56 @@ app.get('/api/v1/me', authMiddleware, async (req:any, res:any) => {
     }
 })
 
+// Change password
+app.post('/api/v1/change-password', authMiddleware, async (req:any, res:any) => {
+    try {
+        const userId = req.user?.id
+        const { currentPassword, newPassword } = req.body
+
+        if (!currentPassword || !newPassword) {
+            return res.status(400).json({ message: 'currentPassword and newPassword are required' })
+        }
+
+        const user = await UserModel.findById(userId)
+        if (!user) return res.status(404).json({ message: 'User not found' })
+
+        const ok = await bcrypt.compare(currentPassword, user.password)
+        if (!ok) return res.status(401).json({ message: 'Current password is incorrect' })
+
+        const hashed = await bcrypt.hash(newPassword, 10)
+        user.password = hashed
+        await user.save()
+
+        return res.status(200).json({ message: 'Password updated successfully' })
+    } catch (e) {
+        return res.status(500).json({ message: 'Server Error' })
+    }
+})
+
+// Update user name
+app.patch('/api/v1/user/name', authMiddleware, async (req:any, res:any) => {
+    try {
+        const userId = req.user?.id
+        const { name } = req.body
+
+        if (!name || typeof name !== 'string') {
+            return res.status(400).json({ message: 'Valid name is required' })
+        }
+
+        const updated = await UserModel.findByIdAndUpdate(
+            userId,
+            { $set: { name } },
+            { new: true, projection: 'username name avatar googleId' as any }
+        )
+
+        if (!updated) return res.status(404).json({ message: 'User not found' })
+
+        return res.status(200).json({ message: 'Name updated successfully', user: updated })
+    } catch (e) {
+        return res.status(500).json({ message: 'Server Error' })
+    }
+})
+
 app.post('/api/v1/content', authMiddleware, async(req:any, res:any)=>{
     const token = req.headers.token
     if(!token){
@@ -573,7 +623,7 @@ app.get('/api/v1/secondBrainSearch/:query', async(req:any, res:any)=>{
         });
     }
 
-    const response = await axios.post('http://127.0.0.1:8000/search',{
+    const response = await axios.post('http://127.0.0.1:8000/search/',{
         query:query,
         userId:userId,
         top:3

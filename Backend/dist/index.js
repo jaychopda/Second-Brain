@@ -533,11 +533,12 @@ app.get('/api/v1/secondBrainSearch/:query', (req, res) => __awaiter(void 0, void
             message: "Invalid token payload"
         });
     }
-    const response = yield axios_1.default.post('http://127.0.0.1:8000/search', {
+    const response = yield axios_1.default.post('http://127.0.0.1:8000/search/', {
         query: query,
         userId: userId,
         top: 3
     });
+    console.log(response.data);
     return res.status(200).json({
         data: response.data
     });

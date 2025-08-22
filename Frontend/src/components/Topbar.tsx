@@ -2,6 +2,7 @@ import React from 'react'
 import { Button } from './Button'
 import { PlusIcon } from '../icons/PlusIcon'
 import { ShareIcon } from '../icons/ShareIcon'
+import VoiceRecorder from './VoiceRecorder'
 
 interface TopbarProps {
   sidebarOpen?: boolean
@@ -20,6 +21,10 @@ interface TopbarProps {
   onNavigateToBrain?: () => void
   onNavigateToDashboard?: () => void
   onNavigateToOthers?: () => void
+  
+  // Voice processing
+  onVoiceProcessed?: (action: string, data: any) => void
+  isVoiceProcessing?: boolean
 
   // Which page are we on to show a context button
   context?: 'dashboard' | 'brain'
@@ -37,6 +42,8 @@ export const Topbar: React.FC<TopbarProps> = ({
   onNavigateToBrain,
   onNavigateToDashboard,
   onNavigateToOthers,
+  onVoiceProcessed,
+  isVoiceProcessing = false,
   context = 'dashboard'
 }) => {
   const [isDropdownOpen, setIsDropdownOpen] = React.useState(false)
@@ -128,6 +135,13 @@ export const Topbar: React.FC<TopbarProps> = ({
 
         {/* Right: Primary actions */}
         <div className="flex items-center gap-2">
+          {onVoiceProcessed && (
+            <VoiceRecorder 
+              onVoiceProcessed={onVoiceProcessed}
+              isProcessing={isVoiceProcessing}
+              userToken={localStorage.getItem("token") || ""}
+            />
+          )}
           {onOpenAddContent && (
             <Button variant="primary" size="sm" text="Add" startIcon={<PlusIcon />} onClick={onOpenAddContent} />
           )}

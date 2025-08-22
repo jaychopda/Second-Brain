@@ -7,6 +7,7 @@ import TweetInfo from "./pages/TweetInfo"
 import OthersBrain from "./pages/OthersBrain"
 import GoogleCallback from "./pages/GoogleCallback"
 import Profile from "./pages/Profile"
+import VoiceTest from "./pages/VoiceTest"
 
 
 function App() {
@@ -23,6 +24,7 @@ function App() {
           <Route path="/tweet/info/:id" element={<TweetInfo />} />
           <Route path="/oauth/google/callback" element={<GoogleCallback />} />
           <Route path="/profile" element={<Profile />} />
+          <Route path="/voice-test" element={<VoiceTest />} />
           {/* <Route path="/testing" element={<Testing />} /> */}
         </Routes>
       </BrowserRouter>

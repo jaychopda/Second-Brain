@@ -40,6 +40,7 @@ export default function Dashboard() {
   const [mainContents, setMainContents] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchType, setSearchType] = useState<'normal' | 'secondbrain'>('normal');
+  const [isVoiceProcessing, setIsVoiceProcessing] = useState(false);
   // const [isDropdownOpen, setIsDropdownOpen] = useState(false); // Moved to Topbar
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userStats, setUserStats] = useState<UserStats>({
@@ -70,6 +71,31 @@ export default function Dashboard() {
       fetchUserData();
     }
   }, []);
+
+  // Handle voice processing
+  const handleVoiceProcessed = async (action: string, data: any) => {
+    setIsVoiceProcessing(false);
+    
+    try {
+      switch (action) {
+        case 'add_content':
+          setModalOpen(true);
+          break;
+        case 'search':
+          setSearchQuery(data.query);
+          setSearchType(data.searchType || 'normal');
+          break;
+        case 'embedding_search':
+          setSearchQuery(data.query);
+          setSearchType('secondbrain');
+          break;
+        default:
+          console.log('Unknown action:', action);
+      }
+    } catch (error) {
+      console.error('Error handling voice action:', error);
+    }
+  };
 
   // Set sidebar state based on screen size
   useEffect(() => {
@@ -336,6 +362,8 @@ export default function Dashboard() {
         onNavigateToBrain={() => { window.location.href = '/brain' }}
         onNavigateToOthers={() => { window.location.href = '/others-brain' }}
         onNavigateToDashboard={() => { window.location.href = '/' }}
+        onVoiceProcessed={handleVoiceProcessed}
+        isVoiceProcessing={isVoiceProcessing}
         context={'dashboard'}
       />
       
