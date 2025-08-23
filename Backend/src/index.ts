@@ -16,8 +16,6 @@ import axios from 'axios'
 import { uploadOnCloudinary } from './utils/cloudinary'
 import { upload } from "./middlewares/multer";
 import { OAuth2Client } from 'google-auth-library'
-// Note: You'll need to install multer first: npm install multer @types/multer
-// import { upload } from './middlewares/multer'
 
 
 dotenv.config()
@@ -29,7 +27,7 @@ app.use(cors())
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET
-const GOOGLE_REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI || 'http://localhost:5173/oauth/google/callback'
+const GOOGLE_REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI || 'http://localhost:8000/oauth/google/callback'
 const JWT_SECRET = process.env.JWT_SECRET || 'drf36ftceyuh34u45y3iui34gbtbvenm23j4hb9nem'
 
 if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
@@ -41,7 +39,9 @@ const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GO
 
 async function main(){
     connectDB()
-    app.listen(3000)
+    app.listen(3000, () => {
+        console.log('Server running on port 3000')
+    })
 }
 
 const User = z.object({

@@ -30,8 +30,6 @@ const axios_1 = __importDefault(require("axios"));
 const cloudinary_1 = require("./utils/cloudinary");
 const multer_1 = require("./middlewares/multer");
 const google_auth_library_1 = require("google-auth-library");
-// Note: You'll need to install multer first: npm install multer @types/multer
-// import { upload } from './middlewares/multer'
 dotenv_1.default.config();
 // Increase payload limit for file uploads (base64 encoded files can be large)
 app.use(express_1.default.json({ limit: '50mb' }));
@@ -39,7 +37,7 @@ app.use(express_1.default.urlencoded({ limit: '50mb', extended: true }));
 app.use((0, cors_1.default)());
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
-const GOOGLE_REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI || 'http://localhost:5173/oauth/google/callback';
+const GOOGLE_REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI || 'http://localhost:8000/oauth/google/callback';
 const JWT_SECRET = process.env.JWT_SECRET || 'drf36ftceyuh34u45y3iui34gbtbvenm23j4hb9nem';
 if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
     console.error('Google OAuth is not configured. Please set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in your environment.');
@@ -49,7 +47,9 @@ const googleClient = new google_auth_library_1.OAuth2Client(GOOGLE_CLIENT_ID, GO
 function main() {
     return __awaiter(this, void 0, void 0, function* () {
         (0, db_1.connectDB)();
-        app.listen(3000);
+        app.listen(3000, () => {
+            console.log('Server running on port 3000');
+        });
     });
 }
 const User = zod_1.default.object({
@@ -250,6 +250,48 @@ app.get('/api/v1/me', auth_user_1.authMiddleware, (req, res) => __awaiter(void 0
     }
     catch (e) {
         res.status(500).json({ message: 'Server Error' });
+    }
+}));
+// Change password
+app.post('/api/v1/change-password', auth_user_1.authMiddleware, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a;
+    try {
+        const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.id;
+        const { currentPassword, newPassword } = req.body;
+        if (!currentPassword || !newPassword) {
+            return res.status(400).json({ message: 'currentPassword and newPassword are required' });
+        }
+        const user = yield User_model_1.UserModel.findById(userId);
+        if (!user)
+            return res.status(404).json({ message: 'User not found' });
+        const ok = yield bcrypt_1.default.compare(currentPassword, user.password);
+        if (!ok)
+            return res.status(401).json({ message: 'Current password is incorrect' });
+        const hashed = yield bcrypt_1.default.hash(newPassword, 10);
+        user.password = hashed;
+        yield user.save();
+        return res.status(200).json({ message: 'Password updated successfully' });
+    }
+    catch (e) {
+        return res.status(500).json({ message: 'Server Error' });
+    }
+}));
+// Update user name
+app.patch('/api/v1/user/name', auth_user_1.authMiddleware, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a;
+    try {
+        const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.id;
+        const { name } = req.body;
+        if (!name || typeof name !== 'string') {
+            return res.status(400).json({ message: 'Valid name is required' });
+        }
+        const updated = yield User_model_1.UserModel.findByIdAndUpdate(userId, { $set: { name } }, { new: true, projection: 'username name avatar googleId' });
+        if (!updated)
+            return res.status(404).json({ message: 'User not found' });
+        return res.status(200).json({ message: 'Name updated successfully', user: updated });
+    }
+    catch (e) {
+        return res.status(500).json({ message: 'Server Error' });
     }
 }));
 app.post('/api/v1/content', auth_user_1.authMiddleware, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
@@ -538,7 +580,6 @@ app.get('/api/v1/secondBrainSearch/:query', (req, res) => __awaiter(void 0, void
         userId: userId,
         top: 3
     });
-    console.log(response.data);
     return res.status(200).json({
         data: response.data
     });

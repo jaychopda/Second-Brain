@@ -2,11 +2,10 @@ import axios from "axios";
 import { CloseIcon } from "../icons/CloseIcon"
 import { useRef, useState, useEffect } from "react";
 import { BACKEND_URL } from "../config";
-import VoiceToText from "./VoiceToText";
 
 export const CreateContentModel = ({open, onClose}: {open: boolean, onClose: () => void})=>{
     const titleRef = useRef<HTMLInputElement>(null);
-        const [title, setTitle] = useState('');
+    const [title, setTitle] = useState('');
     const linkRef = useRef<HTMLInputElement>(null);
     const tagsRef = useRef<HTMLInputElement>(null);
     const descriptionRef = useRef<HTMLTextAreaElement>(null);
@@ -22,6 +21,7 @@ export const CreateContentModel = ({open, onClose}: {open: boolean, onClose: () 
     // Add state for recording
     const [isRecording, setIsRecording] = useState(false);
     const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
+    const [isTranscribing, setIsTranscribing] = useState(false);
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const audioChunksRef = useRef<Blob[]>([]);
 
@@ -47,11 +47,16 @@ export const CreateContentModel = ({open, onClose}: {open: boolean, onClose: () 
                             audioChunksRef.current.push(event.data);
                         }
                     };
-                    mediaRecorder.onstop = () => {
+                    mediaRecorder.onstop = async () => {
                         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
                         setAudioBlob(audioBlob);
                         // Stop all tracks to release the mic
                         stream.getTracks().forEach(track => track.stop());
+                        
+                        // Automatically transcribe the audio
+                        if (audioBlob.size > 0) {
+                            await transcribeAudio(audioBlob);
+                        }
                     };
                     mediaRecorder.start();
                     setIsRecording(true);
@@ -60,6 +65,59 @@ export const CreateContentModel = ({open, onClose}: {open: boolean, onClose: () 
                 }
             }
         };
+
+    // Transcribe audio using Django backend
+    const transcribeAudio = async (audioBlob: Blob) => {
+        if (!audioBlob) return;
+        
+        setIsTranscribing(true);
+        try {
+            console.log('Starting transcription...');
+            console.log('Audio blob size:', audioBlob.size);
+            console.log('Audio blob type:', audioBlob.type);
+            
+            const formData = new FormData();
+            formData.append('audio', audioBlob, 'recording.webm');
+            
+            console.log('FormData created, sending request to:', `${BACKEND_URL}/api/voice/transcribe/`);
+            
+            const response = await axios.post(`http://127.0.0.1:8000/api/voice/transcribe/`, formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data',
+                    'token': localStorage.getItem("token") || ""
+                }
+            });
+            
+            console.log('Response received:', response);
+            
+                         if (response.data.success && response.data.transcribed_text) {
+                 console.log('Transcription successful:', response.data.transcribed_text);
+                 // Append transcribed text to existing description
+                 if (descriptionRef.current) {
+                     const currentValue = descriptionRef.current.value;
+                     const separator = currentValue ? '\n\n' : '';
+                     descriptionRef.current.value = currentValue + separator + response.data.transcribed_text;
+                 }
+             } else {
+                console.log('Transcription failed:', response.data);
+                alert('Transcription failed: ' + (response.data.error || 'Unknown error'));
+            }
+        } catch (error: any) {
+            console.error('Transcription error details:', error);
+            if (error.response) {
+                console.error('Response status:', error.response.status);
+                console.error('Response data:', error.response.data);
+                console.error('Response headers:', error.response.headers);
+            } else if (error.request) {
+                console.error('Request was made but no response received:', error.request);
+            } else {
+                console.error('Error setting up request:', error.message);
+            }
+            alert('Failed to transcribe audio. Please try again.');
+        } finally {
+            setIsTranscribing(false);
+        }
+    };
 
     // Set initial modal position in center-right
     useEffect(() => {
@@ -342,21 +400,20 @@ export const CreateContentModel = ({open, onClose}: {open: boolean, onClose: () 
                                 </svg>
                                 <span className="text-sm font-medium text-gray-700">Voice to Text</span>
                             </div>
-                            <VoiceToText
-                                onTranscriptUpdate={(text) => {
-                                    // Update the textarea with partial results
-                                    if (descriptionRef.current) {
-                                        descriptionRef.current.value = text;
-                                    }
-                                }}
-                                onFinalTranscript={(text) => {
-                                    // Update the textarea with final results
-                                    if (descriptionRef.current) {
-                                        descriptionRef.current.value = text;
-                                    }
-                                }}
-                                disabled={uploading}
-                            />
+                            <div className="flex flex-col items-start space-y-2">
+                                <button
+                                    type="button"
+                                    className={`px-4 py-2 rounded-lg bg-blue-600 text-white font-semibold shadow hover:bg-blue-700 transition ${isRecording ? 'bg-red-600' : ''}`}
+                                    onClick={handleRecordAudio}
+                                >
+                                    {isRecording ? 'Stop Recording' : 'Record Audio'}
+                                </button>
+                                {audioBlob && (
+                                    <>
+                                        <audio controls src={URL.createObjectURL(audioBlob)} className="mt-2" />
+                                    </>
+                                )}
+                            </div>
                         </div>
                     </div>
                 )}
@@ -370,7 +427,7 @@ export const CreateContentModel = ({open, onClose}: {open: boolean, onClose: () 
                             accept="audio/*"
                             className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                         />
-                        {/* Record Audio button - UI only */}
+                        {/* Record Audio button */}
                         <div className="mt-4 flex flex-col items-start">
                             <button
                                 type="button"
