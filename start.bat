@@ -8,14 +8,11 @@ start "Frontend" cmd /k "cd Frontend && npm run dev"
 echo Starting Backend...
 start "Backend" cmd /k "cd Backend && npm run dev"
 
-echo Starting Voice To Text Server...
-start "VoiceToTextServer" cmd /k "cd VoiceToTextServer && start.bat"
-
 echo Starting AI Service...
-start "AI Service" cmd /k "cd ../Second Brain API 2/ai_service && python manage.py runserver"
+start "AI Service" cmd /k "cd ai_service && python manage.py runserver"
 
 echo Starting WebSocket Server...
-start "WebSocket Server" cmd /k "cd ../Second Brain API 2/Chat && python WebSocketServer.py"
+start "WebSocket Server" cmd /k "cd Chat && python WebSocketServer.py"
 
 echo.
 echo All services are starting in separate windows...
